@@ -1,0 +1,144 @@
+#include <Trade/Trade.mqh>
+int handle;
+int barsTotal;
+int EMA200;
+int EMA20;
+
+CTrade trade;
+
+ulong posTicket;
+
+int OnInit()
+  {
+   handle =iMACD(_Symbol,PERIOD_CURRENT,12,26,9,PRICE_CLOSE);
+
+   barsTotal = iBars(_Symbol,PERIOD_CURRENT);
+   
+   EMA200 = iMA(_Symbol,PERIOD_CURRENT,200,0,MODE_EMA,PRICE_CLOSE);
+   
+   EMA20 = iMA(_Symbol,PERIOD_CURRENT,20,0,MODE_EMA,PRICE_CLOSE);
+
+
+
+
+   return(INIT_SUCCEEDED);
+  }
+
+void OnDeinit(const int reason)
+  {
+
+
+  }
+
+
+void OnTick()
+  {
+      int bars = iBars(_Symbol,PERIOD_CURRENT);
+
+      if(bars > barsTotal)
+      {
+         barsTotal = bars;
+         double macd[];
+         CopyBuffer(handle,MAIN_LINE,1,2,macd);
+   
+         double signal[];
+         CopyBuffer(handle,SIGNAL_LINE,1,2,signal);
+         
+         double EMA_200[];
+         CopyBuffer(EMA200,0,0,1,EMA_200);
+         
+         double EMA_20[];
+         CopyBuffer(EMA20,0,0,1,EMA_20);
+
+         // BUY ONLY
+         if(EMA_20[0] > EMA_200[0])
+         {
+            if(macd[1] > signal[1] && macd[0] < signal[0])
+            {
+               Print(__FUNCTION__, " > Buy Crossover ...");
+      
+               if(posTicket <=0)
+               {
+                  double ask = SymbolInfoDouble(_Symbol,SYMBOL_ASK);
+      
+                  double tp = ask + 100 * _Point;
+                  tp = NormalizeDouble(tp,_Digits);
+      
+                  double sl = ask - 50 * _Point;
+                  tp = NormalizeDouble(tp,_Digits);
+   
+   
+                  if(trade.Buy(0.1,_Symbol,0,sl,tp))
+                  {
+                     posTicket = trade.ResultOrder();
+                  }
+               }
+            }
+            else if(macd[1] < signal[1] && macd[0] > signal[0])
+            {
+               Print(__FUNCTION__, " > Sell Crossover ...");
+   
+               if(posTicket > 0 && PositionSelectByTicket(posTicket))
+               {
+                  if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+                  {
+                     if(trade.PositionClose(posTicket))
+                     {
+                        posTicket = 0;
+                        Print(__FUNCTION__, "Buy pos",posTicket, " closed . . .");
+                     }
+                  }
+               }
+               else
+               {
+                  posTicket = 0;
+                  Print(__FUNCTION__, "pos",posTicket, " was closed already . . .");
+               }
+            }
+         }
+         else if(EMA_20[0] < EMA_200[0])
+         {
+            //SELL ONLY 
+            if(macd[1] < signal[1] && macd[0] > signal[0])
+            {
+               Print(__FUNCTION__, " > Sell Crossover ...");
+      
+                  if(posTicket <=0)
+                  {
+                     double bid = SymbolInfoDouble(_Symbol,SYMBOL_BID);
+      
+                     double tp = bid - 100 * _Point;
+                     tp = NormalizeDouble(tp,_Digits);
+      
+                     double sl = bid + 50 * _Point;
+                     tp = NormalizeDouble(tp,_Digits);
+      
+                     if(trade.Sell(0.1,_Symbol,0,sl,tp))
+                     {
+                        posTicket = trade.ResultOrder();
+                     }
+                  }
+            }
+            else if(macd[1] > signal[1] && macd[0] < signal[0])
+            {
+               Print(__FUNCTION__, " > Buy Crossover ...");
+               if(posTicket > 0 && PositionSelectByTicket(posTicket))
+               {
+                  if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
+                  {
+                     if(trade.PositionClose(posTicket))
+                     {
+                        posTicket = 0;
+                        Print(__FUNCTION__, "Sell pos",posTicket, " closed . . .");
+                     }
+                  }
+               } 
+               else
+               {
+                  Print(__FUNCTION__, "pos",posTicket, " was closed already . . .");
+                  posTicket = 0;
+               }
+            }
+         }
+      }  
+  }  
